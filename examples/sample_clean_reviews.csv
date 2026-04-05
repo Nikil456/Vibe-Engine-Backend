@@ -1,0 +1,2 @@
+business_id,restaurant_name,latitude,longitude,review_id,review_text,stars
+biz_demo_001,Quiet Study Cafe,37.77,-122.42,rev_demo_001,"Great quiet cafe with dim lighting, perfect for studying, but the service was slow.",5.0
