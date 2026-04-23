@@ -12,6 +12,7 @@ DEFAULT_CORS_ORIGINS = (
 
 # SearchResponse.search_mode — swap to e.g. "semantic" when embeddings are live.
 SEARCH_MODE_KEYWORD = "placeholder_keyword"
+SEARCH_MODE_SEMANTIC = "semantic"
 
 SEARCH_PLACEHOLDER_NOTE = (
     "Semantic search not wired yet — Nikil will replace this with embedding similarity."

@@ -21,11 +21,13 @@ from src.api.constants import (
     API_V1_PREFIX,
     DEFAULT_CORS_ORIGINS,
     SEARCH_MODE_KEYWORD,
+    SEARCH_MODE_SEMANTIC,
     SEARCH_PLACEHOLDER_NOTE,
 )
 from src.api.placeholder_search import keyword_rank
 from src.api.profile_store import ProfileStore
 from src.api.schemas import RestaurantListResponse, SearchRequest, SearchResponse
+from src.api.semantic_search import SemanticSearcher
 from src.config import load_settings
 
 logger = logging.getLogger(__name__)
@@ -57,6 +59,15 @@ async def lifespan(app: FastAPI):
     path = profiles_file_path()
     app.state.profile_store = ProfileStore.load(path)
     app.state.profiles_path = path
+
+    if app.state.profile_store.has_embeddings():
+        logger.info("Initializing semantic searcher...")
+        app.state.semantic_searcher = SemanticSearcher(
+            app.state.profile_store.all()
+        )
+    else:
+        app.state.semantic_searcher = None
+
     logger.info("Loaded %s restaurants from %s", len(app.state.profile_store.all()), path)
     yield
 
@@ -79,15 +90,29 @@ def get_restaurant(business_id: str, store: Store) -> dict:
 
 
 @v1.post("/search", response_model=SearchResponse)
-def search(body: SearchRequest, store: Store) -> SearchResponse:
+def search(body: SearchRequest, store: Store, request: Request) -> SearchResponse:
     rows = store.all()
+
+    semantic_searcher: SemanticSearcher | None = getattr(
+        request.app.state, "semantic_searcher", None
+    )
+
+    if semantic_searcher and body.query.strip():
+        ranked = semantic_searcher.search(body.query, body.limit)
+        return SearchResponse(
+            query=body.query,
+            results=ranked,
+            count=len(ranked),
+            search_mode=SEARCH_MODE_SEMANTIC,
+        )
+
     ranked = keyword_rank(body.query, rows, body.limit)
     return SearchResponse(
         query=body.query,
         results=ranked,
         count=len(ranked),
         search_mode=SEARCH_MODE_KEYWORD,
-        message=SEARCH_PLACEHOLDER_NOTE,
+        message=SEARCH_PLACEHOLDER_NOTE if not semantic_searcher else None,
     )
 
 
